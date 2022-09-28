@@ -1,9 +1,9 @@
 ﻿/*
-Script:    DeviceIDPnP.ahk
-Author:    XMCQCX
-Date:      2022-09-28
-Version:   1.2.0
-Links:
+Script:   DeviceIDPnP.ahk
+Author:   XMCQCX
+Date:     2022-09-28
+Version:  1.2.0
+Link:     https://www.autohotkey.com/boards/viewtopic.php?f=6&t=108930
 
 Change log:
 2022-09-28 -> 1.2.0 - Fixed an issue when connecting/disconnecting multiple devices at the same time or in quick succession.

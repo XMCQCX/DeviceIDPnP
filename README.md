@@ -54,7 +54,7 @@ IDs for the device(s).
 
 * **Tooltip**
 
-  - true = Show the tooltip in the top left corner. (Default). 
+  - true = Show the tooltip in the top left corner (Default).
 
   - false = Don't show the tooltip in the top left corner.
 

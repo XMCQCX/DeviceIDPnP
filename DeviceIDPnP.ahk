@@ -1,172 +1,150 @@
 ﻿/*
-Script:   DeviceIDPnP.ahk
-Author:   XMCQCX
-Date:     2022-09-28
-Version:  1.2.0
-Link:     https://www.autohotkey.com/boards/viewtopic.php?f=6&t=108930
-
-Change log:
-2022-09-28 -> 1.2.0 - Fixed an issue when connecting/disconnecting multiple devices at the same time or in quick succession.
-2022-09-27 -> 1.1.1 - Fixed an issue with some devices status not properly updating when connecting/disconnecting.
-2022-09-24 -> 1.1.0 - Added run or close scripts/programs if the devices are connected/disconnected when the script start.
+Script:    DeviceIDPnP.ahk
+Author:    XMCQCX
+Date:      2023-03-01
+Version:   2.0.0
+Github:    https://github.com/XMCQCX/DeviceIDPnP
+AHK forum: 
 */
 
-#NoEnv
-#SingleInstance, Force
-SendMode Input
-SetWorkingDir, %A_ScriptDir%
-CoordMode, ToolTip
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+Persistent
+CoordMode "ToolTip", "Screen"
+MyDevices := MyDevicesAdd()
 
 ;=============================================================================================
 
-oMyDevices := {}
-oMyDevices.Push({"DeviceName":"USB Kingston DataTraveler 3.0", "DeviceID":"USB\VID_0951&PID_1666\E0D55EA573DCF450E97C104C"})
-oMyDevices.Push({"DeviceName":"BLUETOOTH PLAYSTATION(R)3 Controller", "DeviceID":"BTHPS3BUS\{53F88889-1AAF-4353-A047-556B69EC6DA6}&DEV&VID_054C&PID_0268&04766E9094F3\9&320AC31D&0&0"})
-oMyDevices.Push({"DeviceName":"HDMI Samsung TV", "DeviceID":"SWD\MMDEVAPI\{0.0.0.00000000}.{ED3C7A62-B05B-44C6-ACD8-BCAA1E894265}"})
+MyDevices.Add({DeviceName:"USB 3.0", DeviceID:"USB\VID_0951&PID_1666\E0D55EA573DCF450E97C104C"})
 
 ;=============================================================================================
 
-DevicesActions(ThisDeviceStatusHasChanged) {
+DevicesActions(thisDeviceStatus) {
 
-    If (ThisDeviceStatusHasChanged = "USB Kingston DataTraveler 3.0 Connected")
-        If !WinExist("ahk_exe Notepad.exe")
-            Run, Notepad.exe
+    if thisDeviceStatus = "USB 3.0 Connected"
+        if !WinExist("ahk_exe Notepad.exe")
+            Run "Notepad.exe"
 
-    If (ThisDeviceStatusHasChanged = "USB Kingston DataTraveler 3.0 Disconnected")
-        If WinExist("ahk_exe Notepad.exe")
-            Winclose, % "ahk_exe Notepad.exe"
+    if thisDeviceStatus = "USB 3.0 Disconnected"
+        if WinExist("ahk_exe Notepad.exe")
+            Winclose "ahk_exe Notepad.exe"
+}
 
-    ;=============================================================================================
+;=============================================================================================
 
-    If (ThisDeviceStatusHasChanged = "BLUETOOTH PLAYSTATION(R)3 Controller Connected")
-        If !WinExist("ahk_exe wordpad.exe")
-            Run, wordpad.exe
-
-    If (ThisDeviceStatusHasChanged = "BLUETOOTH PLAYSTATION(R)3 Controller Disconnected")
-        If WinExist("ahk_exe wordpad.exe")
-            Winclose, % "ahk_exe wordpad.exe"
-
-    ;=============================================================================================
-
-    If (ThisDeviceStatusHasChanged = "HDMI Samsung TV Connected")
-        If !WinExist("ahk_exe mspaint.exe")
-            Run, mspaint.exe
+Class MyDevicesAdd {
     
-    If (ThisDeviceStatusHasChanged = "HDMI Samsung TV Disconnected")
-        If WinExist("ahk_exe mspaint.exe")
-            Winclose, % "ahk_exe mspaint.exe"
+    aMyDevices := []
 
-    ;=============================================================================================
-}
+	Add(oItem)
+	{
+        aDevIDs := [], devCount := 0
 
-; Check devices connected
-oDevicesConnected := {}
-For Device in ComObjGet("winmgmts:").ExecQuery("Select * from Win32_PnPEntity")
-    oDevicesConnected.Push({"DeviceName":Device.Name, "DeviceID":Device.DeviceID, "DevicePNPClass":Device.PNPClass, "DeviceStatus":Device.Status})
-
-;=============================================================================================
-
-; Establish the status of the devices in oMyDevices
-For Index, MyDevice in oMyDevices
-{
-    DeviceFound := ""
-    For Index, DeviceConnected in oDevicesConnected
-    {
-        If (MyDevice.DeviceID = DeviceConnected.DeviceID)
-        {
-            If (DeviceConnected.DeviceStatus = "OK"), DeviceFound := "Yes"
-                MyDevice.DeviceStatus := "Connected"
-
-            If (DeviceConnected.DeviceStatus = "Unknown"), DeviceFound := "Yes"
-                MyDevice.DeviceStatus := "Disconnected"
+        if InStr(oItem.DeviceID, "|&|") {
+            for _, devID in StrSplit(oItem.DeviceID, "|&|") {
+                aDevIDs.push(devID := Trim(devID))
+                oItem.DeviceCount := ++devCount
+            }
+            if !oItem.HasOwnProp("DevicesMatchMode")
+                oItem.DevicesMatchMode := 1
         }
-    }
-    If !DeviceFound
-        MyDevice.DeviceStatus := "Disconnected"
+        else {
+            aDevIDs.push(oItem.DeviceID := Trim(oItem.DeviceID))
+            oItem.DeviceCount := 1
+            oItem.DevicesMatchMode := 1
+        }   
+        
+        if !oItem.HasOwnProp("ActionAtStartup")
+            oItem.ActionAtStartup := "true"
+        
+        if !oItem.HasOwnProp("Tooltip")
+            oItem.Tooltip := "true"
+
+        oItem.DeviceID := aDevIDs
+        this.aMyDevices.push(oItem)
+        
+        devExist := DevicesExistCheck(aDevIDs, oItem.DeviceCount, oItem.DevicesMatchMode)
+
+        if devExist
+            this.aMyDevices[this.aMyDevices.Length].DeviceStatus := "Connected"
+        else
+            this.aMyDevices[this.aMyDevices.Length].DeviceStatus := "Disconnected"
+	}
 }
 
 ;=============================================================================================
 
-; Run or close scripts/programs if the devices are connected/disconnected when the script start.
-Loop % oMyDevices.Count()
-{
-    DeviceStatustStartup := oMyDevices[A_Index].DeviceName A_Space oMyDevices[A_Index].DeviceStatus
-    DevicesActions(DeviceStatustStartup)
-    DeviceStatustStartup := StrReplace(DeviceStatustStartup, "Disconnected", "Not connected")
-    strTooltip .= DeviceStatustStartup "`n"
-}
-If strTooltip
-    strTooltip := RTrim(strTooltip, "`n")
-        Tooltip, % strTooltip, 0, 0
-            SetTimer, RemoveToolTipDeviceStatus, -6000
+TooltipDevicesActions(Mydevices.aMyDevices)
 
-;=============================================================================================
+TooltipDevicesActions(Array) {
 
-OnMessage(0x219, "WM_DEVICECHANGE") 
-WM_DEVICECHANGE(wParam, lParam, msg, hwnd)
-{
-    SetTimer, CheckDevicesStatus , -1250
-}
-Return
+    strTooltip := ""
 
-;=============================================================================================
-
-CheckDevicesStatus:
-
-    ;=============================================================================================
-    
-    ; Check devices connected
-    oDevicesConnected.Delete(1, oDevicesConnected.Length())
-    For Device in ComObjGet("winmgmts:").ExecQuery("Select * from Win32_PnPEntity")
-        oDevicesConnected.Push({"DeviceName":Device.Name, "DeviceID":Device.DeviceID, "DevicePNPClass":Device.PNPClass, "DeviceStatus":Device.Status})
-
-    ;=============================================================================================
-
-    ; Find which devices status has changed in oMyDevices
-    oMyDevicesStatusHasChanged := []
-    For Index, MyDevice in oMyDevices
+    for _, item in Array
     {
-        DeviceFound := ""
-        For Index, DeviceConnected in oDevicesConnected
-        {
-            If (MyDevice.DeviceID = DeviceConnected.DeviceID)
-                If (DeviceConnected.DeviceStatus = "OK")
-                    If (MyDevice.DeviceStatus = "Disconnected"), MyDevice.DeviceStatus := "Connected", DeviceFound := "Yes"
-                            oMyDevicesStatusHasChanged.Push(MyDevice.DeviceName " Connected")
-                
-                If (DeviceConnected.DeviceStatus = "Unknown")
-                    If (MyDevice.DeviceStatus = "Connected"), MyDevice.DeviceStatus := "Disconnected", DeviceFound := "Yes"
-                            oMyDevicesStatusHasChanged.Push(MyDevice.DeviceName " Disconnected")
-        }
-        If !DeviceFound
-            If (MyDevice.DeviceStatus = "Connected"), MyDevice.DeviceStatus := "Disconnected"
-                    oMyDevicesStatusHasChanged.Push(MyDevice.DeviceName " Disconnected")
+        if item.Tooltip = "true"
+            strTooltip .= item.DeviceName A_Space item.DeviceStatus "`n"
+        
+        if item.ActionAtStartup = "true"
+            DevicesActions(item.DeviceName A_Space item.DeviceStatus)
     }
 
-    ;=============================================================================================
-
-    ; If devices in oMyDevices status has changed go to DevicesActions()
-    If (oMyDevicesStatusHasChanged)
-    {
-        strTooltip := ""
-        Loop % oMyDevicesStatusHasChanged.Count()
-        {
-            DevicesActions(oMyDevicesStatusHasChanged[1])
-            strTooltip .= oMyDevicesStatusHasChanged[1] "`n"
-            oMyDevicesStatusHasChanged.RemoveAt(1)
-        }
-        If strTooltip
-            strTooltip := RTrim(strTooltip, "`n")
-                Tooltip, % strTooltip, 0, 0
-                    SetTimer, RemoveToolTipDeviceStatus, -6000
+    If strTooltip {
+        strTooltip := RTrim(strTooltip, "`n")
+        Tooltip strTooltip, 0, 0
+        SetTimer () => ToolTip(), -6000
     }
-    
-    ;=============================================================================================
-
-return
+}
 
 ;=============================================================================================
 
-RemoveToolTipDeviceStatus:
-ToolTip
-return
+DevicesExistCheck(aDevIDs, DeviceCount, DevicesMatchMode) {
+
+    aDevList :=  [], devExistCount := 0
+    
+    for dev in ComObjGet("winmgmts:").ExecQuery("Select * from Win32_PnPEntity")
+        aDevList.Push({DeviceID: dev.DeviceID, DeviceStatus :dev.Status})
+
+    for _, mydevID in aDevIDs
+        for _, dev in aDevList
+            if mydevID = dev.DeviceID
+                if dev.DeviceStatus = "OK"
+                    devExistCount++
+    
+    if DevicesMatchMode = 1
+        if DeviceCount = devExistCount
+            Return true
+    
+    if DevicesMatchMode = 2
+        if devExistCount
+            Return true
+}
+
+;=============================================================================================
+
+OnMessage(0x219, WM_DEVICECHANGE)
+WM_DEVICECHANGE(wParam, lParam, msg, hwnd) {
+    SetTimer DevicesStatusCheck, -1250
+}
+
+DevicesStatusCheck() {
+
+    aNewDevStatus := []
+    for _, dev in MyDevices.aMyDevices
+    {
+        devExist := DevicesExistCheck(dev.DeviceID, dev.DeviceCount, dev.DevicesMatchMode)
+
+        if (devExist && dev.DeviceStatus = "Disconnected") {
+            dev.DeviceStatus := "Connected"
+            aNewDevStatus.Push({DeviceName:dev.DeviceName, DeviceStatus:dev.DeviceStatus, Tooltip:dev.Tooltip, ActionAtStartup:"true"})
+        }
+
+        if (!devExist && dev.DeviceStatus = "Connected") {
+            dev.DeviceStatus := "Disconnected"
+            aNewDevStatus.Push({DeviceName:dev.DeviceName, DeviceStatus:dev.DeviceStatus, Tooltip:dev.Tooltip, ActionAtStartup:"true"})
+        }
+    }
+
+    If aNewDevStatus.Length >= 1
+        TooltipDevicesActions(aNewDevStatus)
+}

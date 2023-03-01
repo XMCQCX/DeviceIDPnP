@@ -1,112 +1,105 @@
 ﻿/*
 Script:    DeviceIDFinder.ahk
 Author:    XMCQCX
-Date:      2022-09-24
-Version:   1.0.0
+Date:      2023-03-01
+Version:   2.0.0
+Github:    https://github.com/XMCQCX/DeviceIDPnP
+AHK forum:
+
+Credits: jNizM
+This is a modified version of his script.
+Example 2: Detect / Monitor Plug and Play device connections and removes
+https://www.autohotkey.com/boards/viewtopic.php?f=83&t=105171
 */
 
-#NoEnv
-#SingleInstance, Force
-SendMode Input
-SetWorkingDir, %A_ScriptDir%
-
-MsgBox, 64, Find deviceID, Plug your device and press OK
+#Requires AutoHotkey v2.0
+#SingleInstance Force
 
 ;=============================================================================================
 
-; List all devices connected
-For Device in ComObjGet("winmgmts:").ExecQuery("Select * from Win32_PnPEntity")
-    ListConnectedDeviceIDs .= device.name ":" A_Tab Device.DeviceID "`n"
+Main := Gui("+Resize +MinSize500x300", "DeviceIDFinder")
+Main.SetFont("s10")
+Main.Add("Text", "xm-5", "Connect or disconnect your devices to view their IDs. Use the right-click context menu to copy selected items.")
+LV := Main.AddListView("w865 h490 r10 +BackgroundDEDEDE Grid", ["Event", "Time", "Device Name", "Device ID"])
+for k, v in ["95", "70", "230", "465"]
+	LV.ModifyCol(k, v)
+
+LV.OnEvent("ContextMenu", ShowContextMenu)
+Main.OnEvent("Size", GuiSize)
+Main.OnEvent("Close", GuiClose)
+Main.Show()
 
 ;=============================================================================================
 
-; Remove duplicates from ListConnectedDeviceIDs
-Loop, Parse, ListConnectedDeviceIDs, "`n"
+WMI := ComObjGet("winmgmts:")
+ComObjConnect(Sink := ComObject("WbemScripting.SWbemSink"), "SINK_")
+command := "WITHIN 1 WHERE TargetInstance ISA 'Win32_PnPEntity'"
+WMI.ExecNotificationQueryAsync(Sink, "SELECT * FROM __InstanceCreationEvent " . command)
+WMI.ExecNotificationQueryAsync(Sink, "SELECT * FROM __InstanceDeletionEvent " . command)
+
+;=============================================================================================
+
+SINK_OnObjectReady(Obj, *)
 {
-    ListConnectedDeviceIDs := (A_Index=1 ? A_LoopField : ListConnectedDeviceIDs . (InStr("`n" ListConnectedDeviceIDs
-    . "`n", "`n" A_LoopField "`n") ? "" : "`n" A_LoopField ) )
+	TI := Obj.TargetInstance
+	Time := FormatTime(A_Now, "HH:mm:ss")
+	switch Obj.Path_.Class
+	{
+		case "__InstanceCreationEvent": EventType := "Connected"
+		case "__InstanceDeletionEvent": EventType := "Disconnected"
+	}
+	LV.Insert(1,, EventType, Time, TI.Name, TI.DeviceID)
 }
 
 ;=============================================================================================
 
-; Add all devices connected in oConnectedDeviceIDs
-oConnectedDeviceIDs := {}
-Loop, Parse, ListConnectedDeviceIDs, "`n"
-    oConnectedDeviceIDs.Push({"DeviceID":A_Loopfield})
-
-;=============================================================================================
-
-MsgBox, 64, Find deviceID, Unplug your device and press OK
-
-;=============================================================================================
-
-; List all devices connected
-For Device in ComObjGet("winmgmts:").ExecQuery("Select * from Win32_PnPEntity")
-    strListConnectedDeviceIDs .= device.name ":" A_Tab Device.DeviceID "`n"
-
-;=============================================================================================
-
-; Remove duplicates from strListConnectedDeviceIDs
-Loop, Parse, strListConnectedDeviceIDs, "`n"
+ShowContextMenu(LV, Item, IsRightClick, X, Y)
 {
-    strListConnectedDeviceIDs := (A_Index=1 ? A_LoopField : strListConnectedDeviceIDs . (InStr("`n" strListConnectedDeviceIDs
-    . "`n", "`n" A_LoopField "`n") ? "" : "`n" A_LoopField ) )
-}
+    MouseGetPos(,,, &mouseOverClassNN)
+    if (Item = 0 || InStr(mouseOverClassNN, "SysHeader"))
+        Return
 
-;=============================================================================================
+    ContextMenu := Menu()
+    ContextMenu.Add("Copy Selected Item", CopyToClipboard)
+    ContextMenu.Add("Clear Listview", ClearListview)
+    ContextMenu.Show(X, Y)
 
-; Find the device that was connected/disconnected
-Loop, Parse, strListConnectedDeviceIDs, "`n"
-{
-    For Index, Element in oConnectedDeviceIDs  
+    CopyToClipboard(*)
     {
-        If InStr(strListConnectedDeviceIDs, Element.DeviceID)
-            oConnectedDeviceIDs.RemoveAt(Index)
+        rowNumber := 0
+        Loop
+        {
+            rowNumber := LV.GetNext(rowNumber)
+            if not rowNumber
+                break
+            deviceName := LV.GetText(rowNumber, 3)
+            deviceID := LV.GetText(rowNumber, 4)
+            strDev .= deviceName ": " deviceID "`n"
+        }
+        strDev := RTrim(strDev, "`n")
+        A_Clipboard := ""
+        A_Clipboard := strDev
+        if !ClipWait(1)
+            return
     }
+
+    ClearListview(*) => LV.Delete()
 }
 
 ;=============================================================================================
 
-; List the IDs of the device
-For Index, Element in oConnectedDeviceIDs
-    DeviceIDFound .= Element.DeviceID "`n"
-
-;=============================================================================================
-
-; Format the IDs of the device
-strDeviceIDFound := ""
-For each, line in StrSplit(DeviceIDFound, "`n")
+GuiSize(thisGui, MinMax, Width, Height)
 {
-    RegExMatch(line, "`nm)^(.*?)" A_TAB "(.*)$", OutputVar)
-        strDeviceIDFound .= OutputVar1 "`n" OutputVar2 "`n`n"
+	if (MinMax = -1)
+		return
+	LV.Move(,, Width - 20, Height  - 40)
+	LV.Redraw()
 }
-strDeviceIDFound := RTrim(strDeviceIDFound, "`n`n")
-
-If !strDeviceIDFound
-    strDeviceIDFound := "No device found !"
 
 ;=============================================================================================
 
-Gui, New
-Gui, Add, Text,, DeviceID:
-Gui, Add, Edit, vTextDeviceID ReadOnly, %strDeviceIDFound%
-Gui, Add, Button, w175 vCopyToClipboard gCopyToClipboard, Copy to Clipboard
-Gui, Add, Button, x+10 w175 gFindAnotherDeviceID, Find ID of another device
-Gui, Add, Button, x+10 w175 gExit, Exit
-GuiControl, Focus, CopyToClipboard
-Gui, Show
-return
-
-;=============================================================================================
-
-CopyToClipboard:
-Clipboard := strDeviceIDFound
-MsgBox, 64, Success, Device ID copied to Clipboard !
-return
-
-FindAnotherDeviceID:
-Reload
-
-Exit:
-GuiClose:
-Exitapp
+GuiClose(*)
+{
+	ComObjConnect(Sink)
+	ExitApp
+}

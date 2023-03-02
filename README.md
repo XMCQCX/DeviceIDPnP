@@ -11,7 +11,7 @@ AutoHotkey script to automatically launch actions when devices are connected or 
 * Option to show or hide tooltips in the top left corner.
 
 ### Supported devices
-* USB, USB Type-C, Bluetooth, HDMI etc...
+* USB, Bluetooth, HDMI etc...
 
 ### Requirement
 * AutoHotkey v2

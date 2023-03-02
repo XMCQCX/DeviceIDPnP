@@ -4,7 +4,7 @@ Author:    XMCQCX
 Date:      2023-03-01
 Version:   2.0.0
 Github:    https://github.com/XMCQCX/DeviceIDPnP
-AHK forum:
+AHK forum: https://www.autohotkey.com/boards/viewtopic.php?f=83&t=114610
 
 Credits: jNizM
 This is a modified version of his script.

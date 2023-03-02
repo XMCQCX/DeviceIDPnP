@@ -6,7 +6,7 @@ AutoHotkey script to automatically launch actions when devices are connected or 
 
 ### New
 * Updated to AutoHotkey v2.
-* Support for groups of devices.
+* Added support for groups of devices. 
 * Option to launch or not launch the device's actions when the script starts.
 * Option to show or hide tooltips in the top left corner.
 

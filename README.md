@@ -36,7 +36,7 @@ IDs for the device(s).
 
         MyDevices.Add({DeviceName:"DeviceName", DeviceID:"DeviceID"})
         
-  - For multiple devices: Use |&| as a separator.
+  - For group of devices: Use |&| as a separator.
 
         MyDevices.Add({DeviceName:"DeviceName", DeviceID:"DeviceID |&| DeviceID", DevicesMatchMode:2})
 

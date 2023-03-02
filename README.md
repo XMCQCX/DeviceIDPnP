@@ -89,4 +89,4 @@ IDs for the device(s).
     https://www.autohotkey.com/boards/viewtopic.php?f=83&t=105171
 
 * **Thanks to AHK community members for the help**
-  - mikeyww, teadrinker, swagfag, just me, FanaticGuru, sofista, boiler and others.
+  - mikeyww, teadrinker, swagfag, just me, jNizM, FanaticGuru, sofista, boiler and others.

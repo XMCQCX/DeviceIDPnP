@@ -71,10 +71,6 @@ IDs for the device(s).
       DevicesActions(ThisDeviceStatusHasChanged) 
 
       Now => DevicesActions(thisDeviceStatus)
-      
-### Donations (PayPal)
-  - If you found this script useful and would like to donate. It would be greatly appreciated. Thank you! :smiley:
-    https://www.paypal.com/paypalme/martinchartier
   
 ### Copyright and License
   - MIT License
